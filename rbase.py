@@ -44,7 +44,7 @@ OUTCOLOR=colorama.Fore.RED
 OUTSTYLE=colorama.Style.BRIGHT
 
 #REFERENCEPATH='/mnt/reference/' ;
-REFERENCEPATH='network/data/pickles/' ;
+REFERENCEPATH='/usr/local/share/py/djscripts/network/data/pickles/' ;
 
 FILESDICT={\
 'hsg' : REFERENCEPATH + 'hsg_latest' ,\
