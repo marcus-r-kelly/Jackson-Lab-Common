@@ -969,13 +969,15 @@ def zfilter(query_ds,bg_dses,query_bait,bg_bait,logp = -3,as_dict=False,percenti
 
 def print_springs( edges,print_headers=True,print_weights=False,print_total_scores=False,\
  print_mean_scores=False,sep='\t',fname="",print_organisms=False,print_source=False,inter_string='pp',\
- transform_scores=None, print_quals=True):
+ transform_scores=None, print_quals=True,print_pps=False):
+
+    from numpy import log10
 
     if ( not fname ) :
         f=sys.stdout  ;
-    elif isfile(fname): 
-        sys.stdout.write('Appending to existing file {}\n'.format(fname)) ; 
-        f=open(fname,"a") ; 
+    #elif isfile(fname): 
+        #sys.stdout.write('Appending to existing file {}\n'.format(fname)) ; 
+        #f=open(fname,"a") ; 
     else : 
         f=open(fname,"w") ; 
 
@@ -995,11 +997,23 @@ def print_springs( edges,print_headers=True,print_weights=False,print_total_scor
             f.write("{}OrgA{}OrgB".format(sep,sep)) ; 
         if ( print_source ) :
             f.write("{}Source".format(sep,sep)) ; 
+        if print_pps : 
+            f.write("{}logp".format(sep)) ; 
 
         # guaranteed springiness printing
         f.write("{}Spring".format(sep)) ; 
 
         f.write("\n") ;
+
+    def spring_transform(edge) : 
+
+        if edge.qual == 'em' : 
+            return 10  ; 
+        elif edge.qual not in {'bg','bp'} : 
+            #return 8.5 - np.log10(e.meanscore) ; 
+            return 1 ; 
+        else : 
+            return 5 ; 
 
 
     for edge in edges : 
@@ -1036,23 +1050,16 @@ def print_springs( edges,print_headers=True,print_weights=False,print_total_scor
                 f.write("{}{}{}{}".format(sep,edget[0].organism,sep,edget[0].organism)) ;
         if ( print_source):
             f.write("{}{}".format(sep,edge.source)) ;
+        if print_pps : 
+            f.write("{}{}".format(sep,-1*log10(edge.p)))
 
         # guaranteed springiness printing
-
-        def spring_transform(edge) : 
-
-            if edge.qual == 'em' : 
-                return 10  ; 
-            elif edge.qual not in {'bg','bp'} : 
-                #return 8.5 - np.log10(e.meanscore) ; 
-                return 1 ; 
-            else : 
-                return 5 ; 
 
         f.write("{}{}".format(sep,spring_transform(edge))) ; 
 
         f.write("\n") ;
 
+    f.close()
 
 
 def dombuddies(infile,keys,debug=False,rooted=False) : 
@@ -1378,16 +1385,18 @@ def madfilter(dataset,ctrl_fname,baitkey,qual=None,directed=False,as_dict=False,
     else :
         return { eks[x] for x in range(len(eks)) if rejects[x] } ; 
 
-def madfilter_corr( dataset,          # network dataset to process, interactors.dataSet instance
-                    ctrl_fname,       # control file name to use, pickled syms,medians mads 
-                    baitkey,          # key for the bait in dataset
-                    qual     = None,  # qualifier for this bait,
-                    directed = False, # is the network directed/non-
-                    as_dict  = False, # ????
-                    alpha    = 0.05,  #
-                    debug    = False, #
-                    maxcorr  = 0.75,  #
-                    floor    = 2      # 
+def madfilter_corr( dataset,                # network dataset to process, interactors.dataSet instance
+                    ctrl_fname,             # control file name to use, pickled syms,medians mads 
+                    baitkey,                # key for the bait in dataset
+                    qual     = None,        # qualifier for this bait,
+                    directed = False,       # is the network directed/non-
+                    as_dict  = False,       # returns two dictionary objects of mad and p-value for each edge
+                    alpha    = 0.05,        # fwer or fdr deepending on method
+                    debug    = False,       #
+                    maxcorr  = 0.75,        #
+                    floor    = 2 ,          # 
+                    method   = 'fdr_bh',    # method for multiple hypothesis testing correction
+                    assign_edge_ps  = True  # whether or not to modify 'p' attribute of tested edges
 ) : 
 
     """
@@ -1523,10 +1532,15 @@ def madfilter_corr( dataset,          # network dataset to process, interactors.
     mads = list(maddict.values()) ; 
     pees = list(peedict.values())
 
-    rejects, adjpees = multipletests( pees, alpha = alpha, method = 'fdr_bh' )[0:2]
+    rejects, adjpees = multipletests( pees, alpha = alpha, method = method )[0:2]
 
     passed = { eks[x] for x in range(len(eks)) if rejects[x] }
-    adjval = { pees[x] for x in range(len(eks)) if rejects[x] }
+
+    if assign_edge_ps : 
+        for i in range(len(eks)) : 
+            dataset.edges[eks[i]].p    =   adjpees[i] ; 
+
+    #adjval = { pees[x] for x in range(len(eks)) if rejects[x] }
     if debug : 
         import colorama
         sys.stderr.write('DEBUG> Results summary:\n') ;

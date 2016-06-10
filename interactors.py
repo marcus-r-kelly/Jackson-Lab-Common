@@ -279,16 +279,17 @@ class bgedge(object):
     """
     def __init__( self, interaction = None, directed = None, qual = '' ): 
 
-        self.to           = None ; 
-        self.whence       = None ; 
-        self.weight       = 0 ; 
-        self.interactions = set() ; 
-        self.meanscore    = 0.0 ;
-        self.totalscore   = 0.0 ;
-        self.source       = '' ; 
-        self.directed     = None ; 
-        self.qual         = qual
-        self.key          = '' ; 
+        self.to             = None ; 
+        self.whence         = None ; 
+        self.weight         = 0 ; 
+        self.interactions   = set() ; 
+        self.meanscore      = 0.0 ;
+        self.totalscore     = 0.0 ;
+        self.source         = '' ; 
+        self.directed       = None ; 
+        self.qual           = qual
+        self.key            = '' ; 
+        self.p              = 1.0 ; 
 
         if interaction : 
             self.add_interaction(interaction) ; 
@@ -1211,13 +1212,15 @@ def fetch_nodes_regex(queries,thebiogrid,field="official") :
             
 def print_edges( edges,print_headers=True,print_mean_scores=False,print_weights=False,print_total_scores=False,\
  sep='\t',fname="",print_organisms=False,print_source=False,inter_string='pp',transform_scores=None,\
- print_quals=True):
+ print_quals=True,print_pps=False):
+
+    from numpy import log10
 
     if ( not fname ) :
         f=sys.stdout  ;
-    elif isfile(fname): 
-        sys.stdout.write('Appending to existing file {}\n'.format(fname)) ; 
-        f=open(fname,"a") ; 
+    #elif isfile(fname): 
+        #sys.stdout.write('Appending to existing file {}\n'.format(fname)) ; 
+        #f=open(fname,"a") ; 
     else : 
         f=open(fname,"w") ; 
 
@@ -1235,6 +1238,8 @@ def print_edges( edges,print_headers=True,print_mean_scores=False,print_weights=
             f.write("{}OrgA{}OrgB".format(sep,sep)) ; 
         if ( print_source ) :
             f.write("{}Source".format(sep,sep)) ; 
+        if print_pps : 
+            f.write("{}logp").format(sep) ; 
 
         f.write("\n") ;
 
@@ -1270,8 +1275,12 @@ def print_edges( edges,print_headers=True,print_mean_scores=False,print_weights=
                 f.write("{}{}{}{}".format(sep,edget[0].organism,sep,edget[0].organism)) ;
         if ( print_source):
             f.write("{}{}".format(sep,edge.source)) ;
+        if print_pps : 
+            f.write("{}{}".format(sep,-1*log10(edge.p)))
 
         f.write("\n") ;
+
+    f.close()
 
 
 

@@ -73,6 +73,8 @@ def readYAMLfile( yamlfile, c ) :
     c['CORRL_LO']     = yout['options'].get('corrl_lo',70)
     c['rescue_deg']   = yout['options'].get('degree_to_rescue',1)
     c['valid_quals']  = yout['options'].get('valid_degree_quals',{'wt',})
+    c['mt_method']    = yout['options'].get('mt_method','fdr_bh')
+
     if type(c['valid_quals']) is list : 
         c['valid_quals'] = set(c['valid_quals'])
 
@@ -141,10 +143,12 @@ def filterNodesByBackground( nwdata, c ):
     for dsd in c['ds_dicts'] : 
         zfhits_strong     |= ie.madfilter_corr( nwdata, dsd['control'], tokey(c, dsd['bait']),
                                             qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_HI'],
-                                                floor = c['FLOOR_HI'], maxcorr = c['CORRL_HI'], debug = DB )
+                                                floor = c['FLOOR_HI'], maxcorr = c['CORRL_HI'], debug = DB , 
+                                            method = c['mt_method'] )
         zfhits_weak       |= ie.madfilter_corr( nwdata, dsd['control'], tokey(c, dsd['bait']),
                                             qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_LO'],
-                                                floor = c['FLOOR_LO'], maxcorr = c['CORRL_LO'], debug = DB )
+                                                floor = c['FLOOR_LO'], maxcorr = c['CORRL_LO'], debug = DB ,
+                                            method = c['mt_method'] )
 
     # expt bait to node edges, that are deemed significant
     zfhits_joint       = zfhits_strong | zfhits_weak
@@ -309,7 +313,7 @@ unitransform = lambda x : 7.0 if x==0.0 else -1 * np.log10(x)
 def makeOutput( nwdata, c ):
         
     ie.print_springs( c['edges_pass2'], print_headers = True, print_weights = True, transform_scores = unitransform,
-                      print_quals = True, fname = c['outfilename'] )
+                      print_quals = True, fname = c['outfilename'] ,print_pps=True)
 
     sys.stdout.write("Nodes:\n  Pass 1: {}\n    Strong: {}\n  Pass 2: {}\n    Rescued : {}\n\n".
                      format( len( c['node_pass1_all'] ), len( c['node_pass1_strong'] ), len( c['nodes_pass2'] ), c['nnodes_rescued'] ))
