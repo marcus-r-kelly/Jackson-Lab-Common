@@ -22,7 +22,7 @@ config       = { 'ifiles' : '/mnt/msrepo/ifiles/',
                  'outfilename'  : '',
                  'rescue_f'     : None }
 
-DB  = True
+DB  = False
 org = ''
 m2h = ''
 h2m = ''
@@ -185,7 +185,7 @@ def readPublicDatasets( nwdata, c ):
 
         sio = StringIO()
         temporaryds.save( sio, edges = { e for e in temporaryds.edges.values() 
-                                         if e.weight >= pd.get('minweight',0) and e.totalscore > pd.get('minscore',0) });
+                                         if e.weight >= pd.get('minweight',0) and e.totalscore >= pd.get('minscore',0) });
         sio.seek(0) 
         nwdata.load_from( sio )
         sio.close()
