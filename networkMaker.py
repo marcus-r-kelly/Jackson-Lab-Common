@@ -179,13 +179,13 @@ def readPublicDatasets( nwdata, c ):
         temporaryds = I.dataSet( i_filter = ie.bg_regex_assembler()[0] )
         if pd.get('convert') == 'm2h' : 
             temporaryds.parse( pdsf, fd = I.fd_biogrid, m2h = True, qualify = pd.get('qualify',''),
-                               directed = True, force_qualify = True )
+                               directed = False, force_qualify = True )
         elif pd.get('convert') == 'h2m' : 
             temporaryds.parse( pdsf, fd = I.fd_biogrid, h2m = True, qualify = pd.get('qualify',''),
-                               directed = True, force_qualify = True )
+                               directed = False, force_qualify = True )
         else : 
             temporaryds.parse( pdsf, fd = I.fd_biogrid, qualify = pd.get('qualify',''),
-                               directed = True, force_qualify = True )
+                               directed = False, force_qualify = True )
 
         sio = StringIO()
         temporaryds.save( sio, edges = { e for e in temporaryds.edges.values() 
