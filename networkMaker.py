@@ -350,7 +350,9 @@ def createNetwork( yamlfile ) :
     secondaryFiltration( theds, config )
 
     makeOutput( theds, config )
+
+    return theds,config
     
 if __name__ == "__main__":
 
-    createNetwork( sys.argv[1] )
+    theds,config=createNetwork( sys.argv[1] )
