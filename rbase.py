@@ -315,7 +315,7 @@ r'CSNK.*',\
 
 pseudogenes={\
 r'LOC.*',\
-r'Gm.*',\
+r'Gm[0-9]\+',\
 }
 
 exogenous_regexes=exores
