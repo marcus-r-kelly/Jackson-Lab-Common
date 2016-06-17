@@ -508,6 +508,10 @@ class node(object):
 
         """
 
+        if within_edge_set is not None and not within_edge_set : 
+            return False
+        # handles the case where within_edge_set is an empty set
+
         if type(othernode) is str  : 
             if othernode not in list(self.edges.keys()) : 
                 return False ; 
