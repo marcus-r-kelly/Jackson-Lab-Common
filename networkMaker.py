@@ -240,7 +240,7 @@ def rescueEdgesByPublic( nwdata, c ):
             edges_pass1.add(e)
 
         elif {e.to.key,e.whence.key}.issubset( c['node_pass1_all'] ) and e.qual in\
-             { pd.get('qualify','') for pd in c['public_dicts'] } : 
+             { pd.get('qualify','') for pd in c['public_dicts'] } and e.to.key != e.whence.key : 
             edges_pass1.add(e)
             reinforcing_edges.add(e)
 
@@ -274,6 +274,7 @@ def secondaryFiltration( nwdata, c ):
                 & ( c['edges_pass1'] | c['reinforcing_edges'] ); 
             # possibly ok edges
             vqe = networkwideRescue( edges_this_node, c )
+            # should this be renamed NON-network wide rescue?
 
             for bk in c['baitkeys'] : 
                 partners_this_node={ n for n in nwdata.nodes[nk].partners.values() if\
