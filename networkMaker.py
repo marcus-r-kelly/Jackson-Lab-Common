@@ -342,7 +342,7 @@ def createNetwork( yamlfile ) :
     loadObjects( config )
     
     #theds = I.dataSet(n_filter = ie.bg_regex_assembler()[1])
-    theds = I.dataSet(i_filter = ie.exogenous_regex_assembler())
+    theds = I.dataSet(n_filter = ie.exogenous_regex_assembler())
 
     readInDatasets( theds, config )
     # filter experimental data by background dists 
