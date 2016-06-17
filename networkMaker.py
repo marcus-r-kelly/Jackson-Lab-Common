@@ -10,6 +10,7 @@ import yaml
 from lib import interactors as I
 from lib import interactors_extras as ie
 from lib import rbase
+from lib.markutils import b4us,afterus
 
 #import rbase
 #import interactors as I
@@ -240,7 +241,7 @@ def rescueEdgesByPublic( nwdata, c ):
             edges_pass1.add(e)
 
         elif {e.to.key,e.whence.key}.issubset( c['node_pass1_all'] ) and e.qual in\
-             { pd.get('qualify','') for pd in c['public_dicts'] } : 
+             { pd.get('qualify','') for pd in c['public_dicts'] } and e.to.key != e.whence.key : 
             edges_pass1.add(e)
             reinforcing_edges.add(e)
 
@@ -262,6 +263,10 @@ def secondaryFiltration( nwdata, c ):
         if nk in c['node_pass1_strong'] :
             # keep node if it passed strong filter
             nodes_pass2.add(nk)
+        elif nk in c['node_pass1_all'] and b4us(nk) in rescued or afterus(nk) in rescued :
+            # rationale for this filter:
+            nodes_pass2.add(nk)
+            nnodes_rescued  += 1
         elif any([ nwdata.nodes[nk].binds(bk,within_edge_set = c['reinforcing_edges']) and \
                    nwdata.nodes[nk].binds( bk, within_edge_set = c['zfhits_joint'] ) 
                    for bk in c['baitkeys'] ]) : 
@@ -274,6 +279,7 @@ def secondaryFiltration( nwdata, c ):
                 & ( c['edges_pass1'] | c['reinforcing_edges'] ); 
             # possibly ok edges
             vqe = networkwideRescue( edges_this_node, c )
+            # should this be renamed NON-network wide rescue?
 
             for bk in c['baitkeys'] : 
                 partners_this_node={ n for n in nwdata.nodes[nk].partners.values() if\
@@ -287,10 +293,6 @@ def secondaryFiltration( nwdata, c ):
         elif c['nwd'] and nk in c['node_pass1_all'] and nwdata.nodes[nk].degree(within_edge_set = vqe) >= c['rescue_deg'] :
             # rationale for this filter:
             nodes_pass2.add(nk)
-        elif nk in c['node_pass1_all'] and b4us(nk) in rescued or afterus(nk) in rescued :
-            # rationale for this filter:
-            nodes_pass2.add(nk)
-            nnodes_rescued  += 1
 
     edges_pass2 = set()            
     for bk in c['baitkeys'] : 
@@ -339,7 +341,8 @@ def createNetwork( yamlfile ) :
     readYAMLfile( yamlfile, config )
     loadObjects( config )
     
-    theds = I.dataSet(n_filter = ie.bg_regex_assembler()[1])
+    #theds = I.dataSet(n_filter = ie.bg_regex_assembler()[1])
+    theds = I.dataSet(i_filter = ie.exogenous_regex_assembler())
 
     readInDatasets( theds, config )
     # filter experimental data by background dists 

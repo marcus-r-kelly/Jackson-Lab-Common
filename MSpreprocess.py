@@ -989,3 +989,5 @@ def eidLen( eid, suppress = True ) :
             if not suppress : 
                 sys.stderr.write('NOTE: No satisfactory peptide accessions for eid {}, using average length of 375.\n'.format(eid)) 
             return PSEUDO_LENGTH
+
+    return PSEUDO_LENGTH
