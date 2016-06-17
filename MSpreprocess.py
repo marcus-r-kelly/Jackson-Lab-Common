@@ -15,15 +15,13 @@ import lib.rbase as rb
 
 from network.models import Entrez, Ncbiprot
 
-tremblre=re.compile(r'.*tr\|([^\|]{6})\|.*') 
-swisspre=re.compile(r'.*sp\|([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})\|.*') 
-entrezre=re.compile(r'.*ref\|([^\|]*)\|.*') 
-symbolre=re.compile(r'.*GN=([A-Za-z0-9]*).*') 
-proteinre=re.compile(r'.*ref\|([ANYXZ]P_\d+)\.?\d{0,2}\|.*') 
-
-PSEUDO_LENGTH=375.0
-
-orgs = { 'hs': 9606, 'mm': 10090 }
+tremblre      = re.compile(r'.*tr\|([^\|]{6})\|.*') 
+swisspre      = re.compile(r'.*sp\|([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})\|.*', re.IGNORECASE ) 
+entrezre      = re.compile(r'.*ref\|([^\|]*)\|.*') 
+symbolre      = re.compile(r'.*GN=([A-Za-z0-9]*).*') 
+proteinre     = re.compile(r'.*ref\|([ANYXZ]P_\d+)\.?\d{0,2}\|.*') 
+PSEUDO_LENGTH = 375.0
+orgs          = { 'hs': 9606, 'mm': 10090 }
 
 def eseek(element,childTag) : 
 
@@ -183,29 +181,29 @@ class MSdata(object) :
         # argument is now an input file object
         # dec15/jan15 revision : parse from excel
 
-        f=infobj
+        f          = infobj
         self.infnames.append(f.name) 
 
-        s=f.readline().strip().split(sep) # moves past headers
-        maxCtDatum=None 
-        maxCt=0 
+        s          = f.readline().strip().split(sep) # moves past headers
+        maxCtDatum = None 
+        maxCt      = 0 
         for line in f :
-            linel=line.strip().split(sep)
-            thisdesc=linel[1]
+            linel    = line.strip().split(sep)
+            thisdesc = linel[1]
 
             if contam.match(thisdesc) :
                 continue
 
             ###### handle when linel[2] =='NaN' RESUME
             try :
-                frac_counts=[ int(linel[2]) ]
+                frac_counts = [ int(linel[2]) ]
             except ValueError : 
-                frac_counts=[0] 
+                frac_counts = [0] 
 
             if ( idrevs.match(thisdesc) ) :
-                isReverse=True 
+                isReverse   = True 
             else :
-                isReverse=False 
+                isReverse   = False 
 
             if ( unTruncate and not isReverse and wastrd.match(thisdesc)) :
                 sys.stderr.write("WARNING:   Description line\n{}\n seems to have been truncated.\n".\
@@ -219,7 +217,7 @@ class MSdata(object) :
                 if entrezh.match(thisdesc) : 
                     pass 
                 else : 
-                    thisdesc=seqRetter(thisdesc)
+                    thisdesc = seqRetter(thisdesc)
                     sys.stderr.write("            Calling EMBOSS seqret\n")
 
             if ( self.debug) :
@@ -228,18 +226,18 @@ class MSdata(object) :
                 sys.stderr.write("DEBUG:       {!r}\n".format(frac_counts))
                 sys.stderr.write("DEBUG:       Id'd as \"Reverse\": {}.\n".format(isReverse))
 
-            newDatum=MSdatum(idn=int(linel[0]),desc=thisdesc,fxncounts=frac_counts,isReverse=isReverse)
+            newDatum        = MSdatum( idn = int(linel[0]), desc = thisdesc, fxncounts = frac_counts, isReverse = isReverse )
 
             if maxCt < newDatum.totalcounts :
-                maxCt=newDatum.totalcounts 
-                maxCtDatum=newDatum 
+                maxCt       = newDatum.totalcounts 
+                maxCtDatum  = newDatum 
 
             if isReverse : 
                 self.rvdata.append(newDatum)
             else :
                 self.fwdata.append(newDatum)
 
-        self.bait=maxCtDatum 
+        self.bait  = maxCtDatum 
 
         f.close()
 
@@ -529,6 +527,8 @@ class MSdata(object) :
 
         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        if bestpepdb == 'RPMm':
+            reference = mmgREF
         w  = 0
         W  = len(self.fwdata)
         for d in self.fwdata : 
@@ -754,24 +754,24 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
 
         for w in range(0,len(possreclist)) : 
             sys.stderr.write("{: >4}----{:->16}----{:->8}----{:->8}\n".format(\
-             w,possreclist[w]['EID'],possreclist[w]['Symbol'],possreclist[w]['Taxon']))
+             w,possreclist[w]['eid'],possreclist[w]['symbol'],possreclist[w]['taxid']))
 
         sys.stderr.write("> ")
-        userin=sys.stdin.readline()
+        userin = sys.stdin.readline()
         while True :
-            k=0 
+            k  = 0 
             try :
-                k=int(userin.strip())
+                k = int(userin.strip())
                 if ( k == -1 ) :
                     return refertouser(desc)
                 else:
-                    sym=possreclist[k]['Symbol']
-                    entrez=possreclist[k]['EID']
-                    org=possreclist[k]['Taxon']
+                    sym    = possreclist[k]['symbol']
+                    entrez = possreclist[k]['eid']
+                    org    = possreclist[k]['taxid']
                 return (entrez,sym,org)
             except (IndexError,ValueError) :
                 sys.stderr.write("Invalid integer.\n> ")
-                userin=sys.stdin.readline()
+                userin     = sys.stdin.readline()
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     # now that entrez ids are a thing, we need to know first whether we're looking at 
@@ -781,6 +781,9 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
     entrez  = None 
     org     = None 
 
+    if debug:
+        print( 'description to match: ' + desc + '\n' + str(symbolre) + '\n')
+    
     me      = entrezre.match( desc )
     ms      = swisspre.match( desc ) 
     mt      = tremblre.match( desc ) 
@@ -793,9 +796,7 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
     fromtre = list() 
     fromsyn = list() 
     frompep = list() 
-    if mp:
-        print( mp.group(1) )
-        print( mp.group() )
+
     if me : 
         froment = reference['eid'].get( me.group(1), '' ) 
     if mg : 
@@ -824,10 +825,7 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
     if debug : 
         sys.stderr.write("DEBUG:  Length of all matched regexes is {}.\n'".format(len(fromall)))
 
-    print( len(fromall) )
-
     for entry in fromall :
-        print( entry['eid'])
         if entry and entry['eid'] not in mid : 
             mid.update({ entry['eid'] : 1 }) 
         elif entry :
@@ -858,14 +856,14 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
             for src,rec in sources : 
                 if type(rec) is list : 
                     for r in rec : 
-                        sys.stderr.write('    {:-<12}--{:->12}--{:->12}\n'.format(src,r['Symbol'],r['EID'])) 
+                        sys.stderr.write('    {:-<12}--{:->12}--{:->12}\n'.format(src,r['symbol'],r['eid'])) 
                 elif rec:
-                    sys.stderr.write('    {:-<12}--{:->12}--{:->12}\n'.format(src,rec['Symbol'],rec['EID'])) 
+                    sys.stderr.write('    {:-<12}--{:->12}--{:->12}\n'.format(src,rec['symbol'],rec['eid'])) 
             
 
             sys.stderr.write('    SCORING:\n') 
             for c in choices : 
-                sys.stderr.write('    {:-<12}--{:-<12}..{:.>}\n'.format(c['Symbol'],c['EID'],mid[c['EID']])) 
+                sys.stderr.write('    {:-<12}--{:-<12}..{:.>}\n'.format(c['symbol'],c['eid'],mid[c['eid']])) 
 
         if choices and type(choices) is list and len(choices) > 1 :
             (entrez,sym,org) = referwithlist(desc,choices); 
@@ -917,7 +915,7 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
         except (KeyError,ValueError,IOError) :
 #            print('from here1')
             (entrez,sym,org) = refertouser(desc)
-            rbase.dup.update({ desc : (entrez,sym,org) }) 
+            rb.dup.update({ desc : (entrez,sym,org) }) 
     elif tryhard and mt : 
         try : 
             swacc,seq     = E.fetchSw(mt.group(1),asTuple=True) 
@@ -928,7 +926,7 @@ def desc_interpreter( desc, tryhard = True, debug = False, bestpepdb = 'RPHs', r
         except (KeyError,ValueError,IOError) :
 #            print('from here2')
             (entrez,sym,org) = refertouser(desc)
-            rbase.dup.update({ desc : (entrez,sym,org) }) 
+            rb.dup.update({ desc : (entrez,sym,org) }) 
     elif tryhard and mp : 
         try :
             rec=E.fetchPR(mp.group(1))

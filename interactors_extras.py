@@ -1427,10 +1427,17 @@ def madfilter_corr( dataset,                # network dataset to process, intera
     if debug :
         sys.stderr.write('DEBUG> interactors_extras.madfilter_corr :\n'+
                          '        syms: '+str(len(allsyms))+' files: '+str(len(allfns))+'\n') ;
-        
+
     symset      = set(allsyms) ; 
     pseudoindex = allsyms.index('PSEUDO') ;
-    pseudoscore = np.log10(np.mean([ e.meanscore for e in dataset.nodes[baitkey].edges.get('PSEUDO_00', PSEUDO_DEFAULT) ]))
+    pseudoscore = dataset.nodes[baitkey].edges.get('PSEUDO_00', PSEUDO_DEFAULT)
+    length      = 1
+    if not type( pseudoscore ) is float:
+        pseudoscore = np.log10(np.mean([ e.meanscore for e in dataset.nodes[baitkey].edges.get('PSEUDO_00', PSEUDO_DEFAULT) ]))
+        length      = len([ e.meanscore for e in dataset.nodes[baitkey].edges['PSEUDO_00'] ])
+    else:
+        pseudoscore = np.log10( pseudoscore )
+        
     pseudofloor = np.log10(floor) + pseudoscore ;
     
     if debug : 
@@ -1438,7 +1445,7 @@ def madfilter_corr( dataset,                # network dataset to process, intera
         '        pseudoscore for these tests is {:8.3}\n'.format(pseudoscore)+\
         '        giving score threshold -log_10('+repr(floor)+')* <pseudoscore> = '+\
         '{:8.6}'.format(pseudofloor)+'\n'+\
-        'from '+repr(len([ e.meanscore for e in dataset.nodes[baitkey].edges['PSEUDO_00'] ]))+'pseudocounts.\n')
+        'from '+repr(length)+'pseudocounts.\n')
 
     if not as_dict : 
         outedges = set() ;
