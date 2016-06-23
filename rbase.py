@@ -113,7 +113,6 @@ def refroots() :
 def load(db) : 
 
     from os.path import isfile
-
     try : 
         if db not in ATTRDICT and isfile(db) : 
             fobj=open(db,'rb') ; 
@@ -126,7 +125,7 @@ def load(db) :
         elif ATTRDICT[db] :
             pass ; 
         else : 
-            raise ValueError('Argument is not a module attribute (mouse/human) and is not a file path.') ; 
+            raise ValueError('Argument ({}) is not a module attribute (mouse/human) and is not a file path.'.format(db))
             
     except KeyboardInterrupt : 
         print('Load Interrupted.') ; 
