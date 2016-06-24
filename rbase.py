@@ -301,7 +301,7 @@ r'RP[SL].*',\
  
 cytores={\
 r"TUB[ABG].*",\
-r"ACT[BG].*",\
+r"ACT[ABG].*",\
 r"MY[OH].*",\
 r'FLN[ABC].*',\
 r'VIM.*',\
