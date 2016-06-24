@@ -287,7 +287,9 @@ def parse( infilename ) :
         mrna       = ''
         
         for line in infile : 
-            line = line.rstrip( '\s\n\t\,\;\.' )
+            line = line.rstrip( )
+            line = line.rstrip( '\,\;\.' )
+
             if line[0:2]=='//' :
                 if isinstance( eid, list ):
                     eid = ','.join( eid )
@@ -305,7 +307,7 @@ def parse( infilename ) :
                     peplen = ','.join( peplen )
                 if isinstance( mrna, list ):
                     mrna = ','.join( mrna )
-                    
+
                 np={    'Acc'       : acc ,
                         'GI'        : gi ,
                         'Length'    : int(peplen),
@@ -372,7 +374,8 @@ def parse( infilename ) :
             elif line[0:6] == 'ORIGIN' : 
                 seqing = True
 
-            elif seqing : 
+            elif seqing :
+                
                 for c in line : 
                     if c.isalpha() :
                         seq += c;

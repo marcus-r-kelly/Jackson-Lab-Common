@@ -1462,7 +1462,7 @@ def madfilter_corr( dataset,                # network dataset to process, intera
     ek_ms = dict()
     ps_ms = dict()
 
-    for e in { e for es in dataset.nodes[baitkey].edges.values() for e in es  } : 
+    for e in { e for es in dataset.nodes[baitkey].edges.values() for e in es  } :
         if qual and e.qual != qual : 
             if debug : 
                 sys.stderr.write('DEBUG> interactors_extras.madfilter_corr : edge '+e.key+\
@@ -1478,7 +1478,7 @@ def madfilter_corr( dataset,                # network dataset to process, intera
         # https://en.wikipedia.org/wiki/Median_absolute_deviation#Relation_to_standard_deviation
         ek_ps.update({ e.key : e.to.official })
         ek_ms.update({ e.key : np.log10(e.meanscore) }) ;
-        ps_ms.update({ e.to.official : np.log10(e.meanscore) }) ;
+        ps_ms.update({ e.to.official : np.log10(e.meanscore) })
 
     # NEXT : remove datasets from background that are highly correlated with the query dataset
     v = np.array([ ps_ms.get( allsyms[x], ps_ms['PSEUDO']) for x in range(len(allsyms)) ])

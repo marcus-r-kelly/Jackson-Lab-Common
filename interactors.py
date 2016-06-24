@@ -6,6 +6,7 @@ from os.path import isfile
 from os import remove
 import importlib
 from django.forms import model_to_dict
+from lib import rbase        
 
 REGEX_COMPILED_TYPE=type(re.compile("foo")) ;
 # for type comparisons later on
@@ -20,7 +21,7 @@ VALID_FIELDS_NODES=["entrez","biogrid","systematic","official","synonyms","organ
 # or node data
 
 fdms=( "interID" , "officialA" , "officialB" , "score" , "organismA" , \
-    "organismB" , "entrezA" , "entrezB" , "srcDB", "tags" )
+       "organismB" , "entrezA" , "entrezB" , "srcDB", "tags" )
 
 
 fd_biogrid=( "interID" , "entrezA" , "entrezB" , "biogridA" , "biogridB" , \
@@ -36,6 +37,9 @@ fd_chem=("interID","biogridA","entrezA","systematicA","official","synonymsA","or
 # resume, from biogrid chemical tsv
 
 DEFAULT_FIELD_DICTIONARY =  fdms
+
+mouse_taxid = '10090'
+human_taxid = '9606'
 
 keyer=lambda x : x.offical + '_' + x.entrez ;
 # function to generate node 'key'
@@ -143,24 +147,25 @@ class interaction(object):
     methods.
 
     interID---------a unique identifier for the observation
-    system----------experimental system
-    systemType------physical or genetic (basically not used outside of biogrid)
     author----------author of publication (biogrid only)
-    pmid------------pubmed ID of publication
-    throughput------high-throughput or low-throughput (biogrid only)
-    score-----------in MOST cases, modified NSAF.
-    modification----basically ignored
-    phenotypes------basically ignored
-    qualificiations-in non-biogrid data, used to mark different types of
-                    interactions that should NOT be merged into the same
-                    edge(e.g. interactions with mutant bait protein)
-    tags------------basically ignored
-    srcDB-----------source database
+    directed--------whether the interaction is directed/not ...
     nodeA-----------pointer to node object. For directed nodes, this is the
                     "source." By my convention, in AP/MS the source node is
                     the bait protein.
+    nodeB---------- pointer to the other node object.
+    pmid------------pubmed ID of publication
+    qualificiations-in non-biogrid data, used to mark different types of
+                    interactions that should NOT be merged into the same
+                    edge(e.g. interactions with mutant bait protein)
+    score-----------in MOST cases, modified NSAF.
+    srcDB-----------source database
+    system----------experimental system
+    systemType------physical or genetic (basically not used outside of biogrid)
+    throughput------high-throughput or low-throughput (biogrid only)
 
-    nodeB---------- pointer to theother node object.
+    tags------------basically ignored
+    modification----basically ignored
+    phenotypes------basically ignored
 
     """
         
@@ -183,40 +188,40 @@ class interaction(object):
         srcDB          = "" ) :
 
         self.interID        = interID ; 
-        self.system         = system ;
-        self.systemType     = systemType ;
         self.Author         = Author ;
-        self.pmid           = pmid ;
-        self.throughput     = throughput ;
-        self.score          = score ;
+        self.directed       = directed ; 
         self.modification   = modification ;
-        self.phenotypes     = phenotypes ;
-        self.qualifications = qualifications ;
-        self.tags           = tags ;
-        self.srcDB          = srcDB ;
         self.nodeA          = nodeA ;
         self.nodeB          = nodeB ;
-        self.directed       = directed ; 
+        self.phenotypes     = phenotypes ;
+        self.pmid           = pmid ;
+        self.qualifications = qualifications ;
+        self.score          = score ;
+        self.srcDB          = srcDB ;
+        self.system         = system ;
+        self.systemType     = systemType ;
+        self.tags           = tags ;
+        self.throughput     = throughput ;
         
     def clone(self) :
         """
             Makes a copy of the interaction.
         """
-        I=interaction(
-        interID        =self.interID,\
-        system         =self.system,\
-        systemType     =self.systemType,\
-        Author         =self.Author,\
-        pmid           =self.pmid,\
-        throughput     =self.throughput,\
-        score          =self.score,\
-        modification   =self.modification,\
-        phenotypes     =self.phenotypes,\
-        qualifications =self.qualifications,\
-        tags           =self.tags,\
-        srcDB          =self.srcDB,\
-        nodeA          =self.nodeA,\
-        nodeB          =self.nodeB)
+        I = interaction(
+            interID        = self.interID,\
+            system         = self.system,\
+            systemType     = self.systemType,\
+            Author         = self.Author,\
+            pmid           = self.pmid,\
+            throughput     = self.throughput,\
+            score          = self.score,\
+            modification   = self.modification,\
+            phenotypes     = self.phenotypes,\
+            qualifications = self.qualifications,\
+            tags           = self.tags,\
+            srcDB          = self.srcDB,\
+            nodeA          = self.nodeA,\
+            nodeB          = self.nodeB)
 
         return I ;
 
@@ -261,40 +266,39 @@ class interaction(object):
 
 class bgedge(object):
     """
-        Container class of interactions.
-        bgedge.to--> destination node for interactions (same conventions as interaction class).
-        bgedge.whence--> sourcenode for interactions (i.e. APMS bait)
-        bgedge.weight--> # of interactions in edge
-        bgedge.interactions--> set of contained interactions
-        bgedge.meanscore--> mean score of contained interactions
-        bgedge.totalscore--> total score of contained interactions
-        bgedge.source--> interaction source string if container edges are uniform,
-                         otherwise.
-        bgedge.directed--> boolean if edge is directed or not.
-        bgedge.qual    --> qualification string of contituent edges
-
-        bgedge.key      --> edge key. Takes the form <nk1>[^>]<nk2>:qual,
-                            where the caret or wedge indicates an undirected or directed
-                            edge respectively.
+        Container class of interactions. attributes:
+        directed     - boolean if edge is directed or not.
+        interactions - set of contained interactions
+        key          - edge key. Takes the form <nk1>[^>]<nk2>:qual,
+                       where the caret or wedge indicates an undirected or directed
+                       edge respectively.
+        meanscore    - mean score of contained interactions
+        p            - p value for the interaction
+        qual         - qualification string of contituent edges
+        source       - interaction source string if container edges are uniform, otherwise.
+        to           - destination node for interactions (same conventions as interaction class).
+        totalscore   - total score of contained interactions
+        weight       - number of interactions in edge
+        whence       - sourcenode for interactions (i.e. APMS bait)
     """
     def __init__( self, interaction = None, directed = None, qual = '' ): 
 
-        self.to             = None ; 
-        self.whence         = None ; 
-        self.weight         = 0 ; 
-        self.interactions   = set() ; 
-        self.meanscore      = 0.0 ;
-        self.totalscore     = 0.0 ;
-        self.source         = '' ; 
-        self.directed       = None ; 
+        self.directed       = None
+        self.interactions   = set()
+        self.key            = ''
+        self.meanscore      = 0.0
+        self.p              = 1.0
         self.qual           = qual
-        self.key            = '' ; 
-        self.p              = 1.0 ; 
+        self.source         = '' 
+        self.to             = None
+        self.totalscore     = 0.0
+        self.weight         = 0
+        self.whence         = None 
 
         if interaction : 
-            self.add_interaction(interaction) ; 
+            self.add_interaction( interaction ) ; 
 
-    def add_interaction(self,interaction):
+    def add_interaction( self, interaction ):
         """
             bgedge.add_interaction(interaction)
 
@@ -308,26 +312,25 @@ class bgedge(object):
         if ( not self.to and not self.whence ) :
             self.whence         = interaction.nodeA ; 
             self.to             = interaction.nodeB ; 
-        elif not { self.to , self.whence } ^ { interaction.nodeA,interaction.nodeB } : 
+        elif not { self.to , self.whence } ^ { interaction.nodeA, interaction.nodeB } : 
             # symmetric difference is empty ==> no overlap in nodes on this edge w/ incoming interaction
             pass ; 
         else : 
             raise KeyError('Edge\'s nodes are not empty, but incoming interaction\'s nodes do not match.\n') ; 
 
         if self.directed is None : 
-            self.directed= interaction.directed ; 
+            self.directed   = interaction.directed ; 
         elif self.directed != interaction.directed : 
             raise ValueError('Edge is directed and incoming interaction is not ,or vice versa.\n') ; 
 
         if self.qual != interaction.qualifications : 
             raise KeyError('Edge\'s and incoming interaction do not have matching qual/qualificaitons.\n') ; 
-        
 
-        self.interactions.add(interaction) ; 
+        self.interactions.add( interaction ) ; 
         self.weight += 1 ;
         try :
             self.totalscore += float(interaction.score) if interaction.score is not None else 0.0 ; 
-            self.meanscore=self.totalscore /self.weight ;
+            self.meanscore   = self.totalscore / self.weight ;
             
         except ValueError :
             pass ;
@@ -355,7 +358,7 @@ class bgedge(object):
         self.weight -= 1 ;
         try :
             self.totalscore -= float(interaction.score) ;
-            self.meanscore=self.totalscore/self.weight ; 
+            self.meanscore   = self.totalscore / self.weight ; 
         except ValueError :
             pass ;
 
@@ -367,7 +370,7 @@ class bgedge(object):
             returns a tuple of keys to the nodes
             at either end of this edge
         """
-        return (self.whence.key,self.to.key) ;
+        return ( self.whence.key, self.to.key ) ;
 
     def determine_origins(self) :
         """
@@ -375,16 +378,16 @@ class bgedge(object):
             interaction source strings.
         """
 
-        istr="" ;
+        istr = "" ;
 
         for i in self.interactions :
             if not istr : 
-                istr=i.srcDB ;
+                istr = i.srcDB ;
             elif istr and i.srcDB != istr :
-                istr='mixed' ;
+                istr = 'mixed' ;
                 break ; 
 
-        self.source=istr ;
+        self.source = istr ;
 
     def connects(self,nodea) :
         """
@@ -416,12 +419,18 @@ class bgedge(object):
         else : 
             return None ; 
 
-    def sharesends(self,other,directed=False) :
+    def sharesends(self, other, directed = False) :
+        """
+           returns true if:
+               - undirected: the other edge connects the same nodes
+               - directed: the other edge connects the same nodes in same orientation
+           returns false otherwise
+        """
         
         if {other.whence.key,other.to.key} != {self.to.key,self.whence.key} : 
             return False ;
-        elif directed and self.to == other.to :
-            return True ;
+        elif directed and self.to != other.to :
+            return False ;
         else : 
             return True ;
 
@@ -441,42 +450,40 @@ class bgedge(object):
 class node(object):
     """
         Contains node (gene) information.
-        node.entrez =   entrez ID of node if it corresponds to a real gene ; 
-                           otherwise 00
-        node.systematic =    biogrid relic
-        node.official   =   "official" gene symbol as used by entrez
-        node.synonyms   =   "other genes" 
-        node.organism   =   taxonomy id (by NCBI conventions, 9606 for humans,
-                            10090 for mice
-
-        node.debug      =   flag for debug messages
-        node.key        =   key (symbol_entrez id)
-
-        node.interactions   =   set containing interactions that link to this node
-        node.edges          =   set containing edges that link to this node
-        node.partners       =   set containing nodes that are linked by edges to this
+        node.biogrid      =   ??????
+        node.debug        =   flag for debug messages
+        node.entrez       =   entrez ID of node if it corresponds to a real gene, otherwise 00
+        node.key          =   key (symbol_entrez id)
+        node.official     =   "official" gene symbol as used by entrez
+        node.organism     =   taxid by NCBI conventions, 9606 for humans, 10090 for mice
+        node.synonyms     =   "other genes" 
+        node.systematic   =   biogrid relic
+        node.interactions =   set containing interactions that link to this node
+        node.edges        =   set containing edges that link to this node
+        node.partners     =   set containing nodes that are linked by edges to this
     """
 
     def __init__( self, official, organism, key, entrez = "", biogrid = "", systematic = "", synonyms = "", debug = False ) :
 
-        self.entrez       = entrez ; 
         self.biogrid      = biogrid ;
-        self.systematic   = systematic ; 
-        self.official     = official ; 
-        self.synonyms     = synonyms ; 
-        self.organism     = organism ; #this is the NCBI taxonomy id
         self.debug        = debug ; 
+        self.entrez       = entrez ; 
         self.key          = key ; 
+        self.official     = official ; 
+        self.organism     = organism ; #this is the NCBI taxonomy id
+        self.synonyms     = synonyms ; 
+        self.systematic   = systematic ; 
 
         self.interactions = {} ; # key: biogrid id # ; value: interaction
         self.partners     = {} ; # key : partner official name + organism; value : node 
         self.edges        = {} ; # key : partner official name ; value: bgedge
 
     def __str__( self ):
-        return( str(self.key) ) 
-    def degree(self,within_edge_set=None) :
+        return( str(self.key) )
+    
+    def degree( self, within_edge_set = None ) :
         """
-            node.degree(self,within_edge_set=None) :
+            node.degree(self,within_edge_set = None) :
 
             returns the number of nodes that link to this one.
             If within_edge_set is supplied, ONLY count nodes
@@ -498,13 +505,14 @@ class node(object):
             # of nodes (because the edges dict is keyed by node) that have
             # some edges in the acceptable edge set (viz. second line does not produce empty set)
 
-    def binds(self,othernode,within_edge_set=None) : 
+    def binds( self, othernode, within_edge_set = None ) : 
         """
-            node.degree(self,within_edge_set=None) :
+            node.binds( self, othernode, within_edge_set = None ) :
 
-            returns the number of nodes that link to this one.
-            If within_edge_set is supplied, ONLY count nodes
-            that are linked by one or more of the provided edges
+            returns a boolean that indicates whether a node 
+            (othernode) binds to this one.
+            If within_edge_set is supplied, it ONLY considers
+            edges that are part of the provided set
 
         """
 
@@ -545,17 +553,14 @@ class dataSet(object):
     def __init__( self, nodes = None, default_organism = "9606", i_filter = None, n_filter = None, debug = False,
                   superdebug = False, default_src = "", correction_dict = None, interactions = None, edges = None ):
 
-        self.debug              = debug ; 
-        self.infilenames        = list()  ; 
         self.default_organism   = default_organism ; 
-        self.i_filter           = i_filter ; # interaction filter? 
-        self.n_filter           = n_filter ; # node filter? 
         self.default_src        = default_src
-        self.keys               = None ; 
+        self.i_filter           = i_filter ; # interaction filter?
+        self.n_filter           = n_filter ; # node filter? 
+        self.infilenames        = list()  ; # filenames from which the network is constructed
+        self.keys               = None ; # keys of nodes in this network
         self.superdebug         = superdebug ;
-        if ( self.superdebug ):
-            self.debug=True ; 
-
+        self.debug              = True if self.superdebug else debug 
 
         # this will again be a set of interactions, but not necessarily with complete data
         if interactions is None :
@@ -582,6 +587,78 @@ class dataSet(object):
         if ( self.debug ) :
             debugout.write("DEBUG:   Sizes at initialization:\n Interactions : {} ; Nodes : {} ; Corrections : {} \n"\
             .format(len(self.the_data),len(self.nodes),len(self.correction_dict))) ; 
+
+
+    def _add_node( self, node ):
+
+        """
+            adds a new node to the network
+            returns True if node was added or already exists, otherwise False
+        """
+        if not node.key in self.nodes.keys():
+            if self.n_filter and not (self.n_filter and self.n_filter.test( node )):
+                # the node is filtered out
+                return False 
+            else:
+                if self.debug : 
+                    debugout.write( "DEBUG:   Creating node {}.\n".format( node.key ))
+                self.nodes.update( { node.key : node } )
+                
+        return True
+
+
+    def _add_interaction( self, iaction ):
+
+        """
+            adds a new interaction to the network. Depepends on 
+            self._add_node to add the nodes before this can be called
+            returns True is the interaction was created/existed
+               and False otherwise
+        """
+
+        if self.i_filter and not ( self.i_filter and self.i_filter.test( iaction )):
+            if self.debug:
+                debugout.write("DEBUG: Interaction {} excluded after filtering.\n".format( iaction.interID))
+            return False
+        else:
+            if not iaction.interID in self.the_data.keys():
+                self.the_data.update({ iaction.interID : iaction }) ;
+            
+                # if the interaction belongs to a previously uncharacterized edge
+                if iaction.edgekey() not in self.edges and ei( iaction.edgekey()) not in self.edges : 
+
+                    # create the edge
+                    newedge = bgedge( interaction = iaction,
+                                      directed    = iaction.directed,
+                                      qual        = iaction.qualifications)
+
+                    # add it to the dataSet's dict of edges
+                    self.edges.update({ newedge.key : newedge }) ;
+                
+                    # connect partners of this edge(may be unecessary) ; 
+                    newedge.whence.partners.update({ newedge.to.key : newedge.to }) ; 
+                    newedge.to.partners.update({ newedge.whence.key : newedge.whence }) ; 
+                
+                    if newedge.whence.key not in newedge.to.edges : 
+                        newedge.to.edges.update({ newedge.whence.key : { newedge } }) ; 
+                    else : 
+                        newedge.to.edges[newedge.whence.key].add(newedge) ; 
+                    
+                    if newedge.to.key not in newedge.whence.edges : 
+                        newedge.whence.edges.update({ newedge.to.key : { newedge } }) ; 
+                    else : 
+                        newedge.whence.edges[newedge.to.key].add(newedge) ; 
+
+                # if the edge was previously characterized, but backwards
+                elif ei( iaction.edgekey()) in self.edges : 
+                    self.edges[ ei( iaction.edgekey())].add_interaction( iaction )
+                else :
+                    self.edges[ iaction.edgekey()].add_interaction( iaction )
+
+                iaction.nodeA.interactions.update({ iaction.interID : iaction })
+                iaction.nodeB.interactions.update({ iaction.interID : iaction })
+
+        return True
 
 
     def _load_data_from_db( self, infobj, logger ):
@@ -650,7 +727,7 @@ class dataSet(object):
         alldata     = self._load_data_from_db( infobj, logger )
         added_iKeys = set(self.the_data.keys()) ;
         added_nKeys = set(self.nodes.keys()) ;
-            
+
         if fd :
             fields_dict = fd ;
         else :
@@ -690,23 +767,14 @@ class dataSet(object):
                     i_keys[c] = new_node.key ; 
 
                 elif m2h : 
-                    new_node  = humanize_node(new_node) ;
-                    i_keys[c] = new_node.key ; 
+                    new_node  = humanize_node(new_node)
+                    i_keys[c] = new_node.key ;
 
-                if ( new_node.key not in added_nKeys ) and ( not self.n_filter or ( self.n_filter and self.n_filter.test(new_node) )):
-                    if (self.debug): 
-                        debugout.write(\
-                         "DEBUG:   Creating node {}, uncreated prior to parsing interaction {}.\n"\
-                         .format(new_node.key,data["interid"]))
-
-                    self.nodes.update( { new_node.key : new_node } ) ;
-                    added_nKeys.add(new_node.key) ;
-                elif ( not self.n_filter or ( self.n_filter and self.n_filter.test(new_node) )) :
-                    pass ; 
-                else :
-                    node_was_filtered = True ;
-
-
+                if ( new_node.key not in added_nKeys ):
+                    node_was_filtered = not( self._add_node( new_node ))
+                    if not node_was_filtered:
+                        added_nKeys.add(new_node.key)
+                    
             if ( node_was_filtered ) :
                 continue ; 
 
@@ -737,265 +805,152 @@ class dataSet(object):
                 logger.debug("WARNING: Interaction {} on line {} has already been added!\n".format(data["interid"],i))
                 continue ;
 
-            self.the_data.update({ thisinteraction.interID : thisinteraction }) ;
-            added_iKeys.add(data["interid"]) ;
-            #necessary because keys() returns a list, not a set
-            
-            # if the interaction belongs to a previously uncharacterized edge
-            #logger.debug( thisinteraction )
-            if thisinteraction.edgekey() not in self.edges and ei(thisinteraction.edgekey()) not in self.edges : 
-
-                # create the edge
-                newedge = bgedge(interaction = thisinteraction,\
-                                 directed    = thisinteraction.directed,\
-                                 qual        = thisinteraction.qualifications)
-
-                # add it to the dataSet's dict of edges
-                self.edges.update({ newedge.key : newedge }) ; 
-
-                # connect partners of this edge(may be unecessary) ; 
-                newedge.whence.partners.update({ newedge.to.key : newedge.to }) ; 
-                newedge.to.partners.update({ newedge.whence.key : newedge.whence }) ; 
-
-                if newedge.whence.key not in newedge.to.edges : 
-                    newedge.to.edges.update({ newedge.whence.key : { newedge } }) ; 
-                else : 
-                    newedge.to.edges[newedge.whence.key].add(newedge) ; 
-                    
-                if newedge.to.key not in newedge.whence.edges : 
-                    newedge.whence.edges.update({ newedge.to.key : { newedge } }) ; 
-                else : 
-                    newedge.whence.edges[newedge.to.key].add(newedge) ; 
-
-            # if the edge was previously characterized, but backwards
-            elif ei(thisinteraction.edgekey()) in self.edges : 
-                self.edges[ei(thisinteraction.edgekey())].add_interaction(thisinteraction) ; 
-            else :
-                self.edges[thisinteraction.edgekey()].add_interaction(thisinteraction) ; 
-
-            thisinteraction.nodeA.interactions.update({ thisinteraction.interID : thisinteraction }) ; 
-            thisinteraction.nodeB.interactions.update({ thisinteraction.interID : thisinteraction }) ;
-
-            #self.nodes[thisinteraction.nodeA.key].update_interaction(thisinteraction) ;
-            #if ( thisinteraction.nodeA.official != thisinteraction.nodeB.official ):
-            #    self.nodes[thisinteraction.nodeB.key].update_interaction(thisinteraction) ;
-
+            if self._add_interaction( thisinteraction ):
+                added_iKeys.add(data["interID"])
+                
         logger.debug("Completed.") ;
         
     def parse( self, infobj, sep = '\t', fd = None, h2m = False, m2h = False, directed = False, qualify = '',
                force_qualify = False, force_score = None ) :
 
-        filelines = sum( 1 for line in infobj ) ;
-        self.infilenames.append( infobj.name ) ; 
-        #sys.stderr.write("DATASET:Opened a file of {} lines.\n".format(filelines));
+        self.infilenames.append( infobj.name )
+        
+        filelines   = sum( 1 for line in infobj ) ;
         sys.stderr.write('Parsing {} ({} lines).\n'.format(infobj.name,filelines)) ; 
-
         infobj.seek(0) ; # return pointer to beginning of file
-
-        i = 1 ;
 
         added_iKeys = set(self.the_data.keys()) ;
         added_nKeys = set(self.nodes.keys()) ;
-
         headerline  = infobj.readline() ;
         headers     = headerline.split(sep) ;
-
-        if fd :
-            fields_dict = fd ;
-        else :
-            fields_dict = DEFAULT_FIELD_DICTIONARY ; 
-
-        dataline = infobj.readline()
+        fields_dict = fd if fd else DEFAULT_FIELD_DICTIONARY
+        dataline    = infobj.readline()
+        i           = 1
+        converted   = dict()
+        
         while dataline : 
+
             # skip all commented lines ; first uncommented line is header
-            if dataline[0] != '#' : 
-                break ; 
-
-        while dataline : 
-
-            node_was_filtered = False ;
-            #if (self.debug):
-            #sys.stderr.write("DATASET:Parsed line {: >16} of {: >16}.\r".format(i+1,filelines)) ;
-            i += 1;
-            mu.waitbar(80 * i / filelines ,80,showPct=True,fill='%')
-            sys.stdout.flush() ;
-
-            dataline = dataline.strip() ;
-            vals     = dataline.split(sep) ; 
-            data     = dict(list(zip(fields_dict,vals))) ; 
+            if dataline[0] == '#' : 
+                continue
+            
+            node_was_filtered = False
+            dataline          = dataline.strip()
+            vals              = dataline.split( sep )
+            data              = dict(list(zip( fields_dict, vals)))
+            i_keys            = { "A" : "" , "B" : "" }
 
             if force_score is not None and data.get('score') is not None : 
                 data['score'] = force_score ; 
 
-            orgs     = { "A" : "" , "B" : "" }  ;
-            src      = "" 
-            i_keys   = {"A" : "" , "B" : "" }  ; 
-
-            # establish use of default organisms where not provided
-
             ## nodes must be created before interactions
             for c in ( 'A','B') :
 
-                orgs[c]     =   data.get( 'organism' + c, self.default_organism)
-                sym         =   data.get( 'official' + c ) ; 
-                entrez      =   data.get( 'entrez' + c ) ; 
-                i_keys[c]   =   sym + "_" + entrez ; 
+                sym         = data.get( 'official' + c )
+                entrez      = data.get( 'entrez' + c )
+                ori_key     = sym + "_" + entrez
+                i_keys[c]   = ori_key
 
-                new_node    = node(entrez       = entrez,\
-                                   biogrid      = data.get("biogrid"+c),\
-                                   systematic   = data.get("systematic"+c),\
-                                   official     = sym,\
-                                   synonyms     = data.get("synonyms"+c),\
-                                   organism     = orgs[c],\
-                                   key          = i_keys[c] ,\
+                new_node    = node(entrez       = entrez,
+                                   biogrid      = data.get( "biogrid"+c ),
+                                   systematic   = data.get( "systematic"+c ),
+                                   official     = sym,
+                                   synonyms     = data.get( "synonyms" + c ),
+                                   organism     = data.get( 'organism' + c, self.default_organism),
+                                   key          = ori_key,
                                    debug        = self.superdebug) ;
-
-                if h2m : 
-                    new_node  = mouseify_node(new_node) ; 
-                    i_keys[c] = new_node.key ; 
-
+                if h2m :
+                    if ori_key in converted:
+                        new_node = converted[ ori_key ]
+                    else:
+                        new_node = mouseify_node(new_node)
+                        converted[ ori_key ] = new_node
+                    
                 elif m2h : 
-                    new_node  = humanize_node(new_node) ;
-                    i_keys[c] = new_node.key ; 
-
-                if ( new_node.key not in added_nKeys ) and ( not self.n_filter or ( self.n_filter and self.n_filter.test(new_node) )):
-                    if (self.debug): 
-                        debugout.write(\
-                         "DEBUG:   Creating node {}, uncreated prior to parsing interaction {}.\n"\
-                         .format(new_node.key,data["interID"])) ;
-                    self.nodes.update( { new_node.key : new_node } ) ;
-                    added_nKeys.add(new_node.key) ;
-                elif ( not self.n_filter or ( self.n_filter and self.n_filter.test(new_node) )) :
-                    pass ; 
-                else :
-                    dataline=infobj.readline() ;
-                    node_was_filtered=True ;
-
-
-            if ( node_was_filtered ) :
-                continue ; 
-
-            src=data.get("srcDB") ; 
-
-            if force_qualify : 
-                thequal=qualify
-            else : 
-                thequal=data.get('qualifications',qualify) ; 
-
-            if data["interID"] not in added_iKeys :
-                thisinteraction=interaction(\
-                interID        =    data.get("interID"),\
-                system         =    data.get("system"),\
-                systemType     =    data.get("systemType"),\
-                Author         =    data.get("Author"),\
-                pmid           =    data.get("pmid"),\
-                throughput     =    data.get("throughput"),\
-                score          =    data.get("score"),\
-                modification   =    data.get("modification"),\
-                phenotypes     =    data.get("phenotypes"),\
-                qualifications =    thequal,\
-                tags           =    data.get("tags"),\
-                directed       =    directed,\
-                srcDB          =    src,\
-                nodeA          =    self.nodes[i_keys['A']],\
-                nodeB          =    self.nodes[i_keys['B']],) ; 
-            else:
-                sys.stderr.write("\rWARNING: Interaction {} on line {} has already been added!\n".format(data["interID"],i)) ;
-                dataline=infobj.readline() ;
-                continue ;
-
-            if not self.i_filter or ( self.i_filter and self.i_filter.test(thisinteraction) ):
-                self.the_data.update({ thisinteraction.interID : thisinteraction }) ;
-                added_iKeys.add(data["interID"]) ;
-                #necessary because keys() returns a list, not a set
+                    if ori_key in converted:
+                        new_node = converted[ ori_key ]
+                    else:
+                        new_node = humanize_node(new_node)
+                        converted[ ori_key ] = new_node
             
-                # if the interaction belongs to a previously uncharacterized edge
-                if thisinteraction.edgekey() not in self.edges and\
-                    ei(thisinteraction.edgekey()) not in self.edges : 
+                i_keys[c] = new_node.key
 
-                    # create the edge
-                    newedge=bgedge(interaction=thisinteraction,\
-                             directed=thisinteraction.directed,\
-                             qual=thisinteraction.qualifications)
+                if ( new_node.key not in added_nKeys ):
 
-                    # add it to the dataSet's dict of edges
-                    self.edges.update({ newedge.key : newedge }) ; 
+                    if self._add_node( new_node ):
+                        added_nKeys.add( new_node.key )
+                    else:
+                        node_was_filtered = True
 
-                    # connect partners of this edge(may be unecessary) ; 
-                    newedge.whence.partners.update({ newedge.to.key : newedge.to }) ; 
-                    newedge.to.partners.update({ newedge.whence.key : newedge.whence }) ; 
+            if not node_was_filtered:
+                if data["interID"] not in added_iKeys :
 
-                    if newedge.whence.key not in newedge.to.edges : 
-                        newedge.to.edges.update({ newedge.whence.key : { newedge } }) ; 
-                    else : 
-                        newedge.to.edges[newedge.whence.key].add(newedge) ; 
+                    thisinteraction = interaction( interID        =    data.get("interID"),
+                                                   system         =    data.get("system"),
+                                                   systemType     =    data.get("systemType"),
+                                                   Author         =    data.get("Author"),
+                                                   pmid           =    data.get("pmid"),
+                                                   throughput     =    data.get("throughput"),
+                                                   score          =    data.get("score"),
+                                                   modification   =    data.get("modification"),
+                                                   phenotypes     =    data.get("phenotypes"),
+                                                   qualifications =    qualify if force_qualify else data.get('qualifications', qualify),
+                                                   tags           =    data.get("tags"),
+                                                   directed       =    directed,
+                                                   srcDB          =    data.get("srcDB", ''),
+                                                   nodeA          =    self.nodes[i_keys['A']],
+                                                   nodeB          =    self.nodes[i_keys['B']])
 
-                    if newedge.to.key not in newedge.whence.edges : 
-                        newedge.whence.edges.update({ newedge.to.key : { newedge } }) ; 
-                    else : 
-                        newedge.whence.edges[newedge.to.key].add(newedge) ; 
-
-                # if the edge was previously characterized, but backwards
-                elif ei(thisinteraction.edgekey()) in self.edges : 
-                    self.edges[ei(thisinteraction.edgekey())].add_interaction(thisinteraction) ; 
+                    if self._add_interaction( thisinteraction ):
+                        added_iKeys.add(data["interID"])
+                        
                 else :
-                    self.edges[thisinteraction.edgekey()].add_interaction(thisinteraction) ; 
+                    sys.stderr.write("\rWARNING: Interaction {} on line {} has already been added!\n".format(data["interID"],i)) ;
 
-                thisinteraction.nodeA.interactions.update({ thisinteraction.interID : thisinteraction }) ; 
-                thisinteraction.nodeB.interactions.update({ thisinteraction.interID : thisinteraction }) ;
-
-                #self.nodes[thisinteraction.nodeA.key].update_interaction(thisinteraction) ;
-               #if ( thisinteraction.nodeA.official != thisinteraction.nodeB.official ):
-               #    self.nodes[thisinteraction.nodeB.key].update_interaction(thisinteraction) ;
-            elif (self.debug):
-                debugout.write("DEBUG: Interaction {} excluded after filtering.\n".format(thisinteraction.interID)) ;
-
-            dataline=infobj.readline() ;
-
+            dataline = infobj.readline() ;
+            i       += 1;
+            mu.waitbar( 80 * i / filelines, 80, showPct = True, fill = '%' )
+            sys.stdout.flush()
+            
         if (self.debug):
-            sys.stderr.write("\nCompleted.\n") ;
+            sys.stderr.write("\nCompleted.\n")
         else : 
-            mu.waitbar(80,80,fill='%',showPct=True) ; 
-            sys.stderr.write('\n') ; 
-        #infobj.close() ;
+            mu.waitbar( 80, 80, fill = '%', showPct = True )
+            sys.stderr.write('\n')
 
 
-    def save(self,f,nodes=None,edges=None):
+    def save(self, f, nodes = None, edges = None):
 
         if isinstance(f,str) :
-            outfile=open(f,'w') ;
+            outfile = open(f,'w') ;
         else : 
-            outfile=f ;
+            outfile = f ;
 
 
         if edges is None or type(edges) is not set : 
-            edges=set(self.edges.values()) ;
+            edges = set(self.edges.values()) ;
         elif type(next(iter(edges))) is str : 
-            edges={ self.edges[ek] for ek in edges if ek in self.edges }
+            edges = { self.edges[ek] for ek in edges if ek in self.edges }
         elif type(next(iter(edges))) == bgedge  : 
             pass ;
 
         if nodes is None or type(nodes) is not set : 
-            nodes=set(self.nodes.values()) ;
+            nodes = set(self.nodes.values()) ;
         elif type(next(iter(nodes))) is str : 
-            nodes={ self.nodes[nk] for nk in nodes if nk in self.nodes }
+            nodes = { self.nodes[nk] for nk in nodes if nk in self.nodes }
         elif isinstance(next(iter(nodes)),node) == node  : 
             pass ;
 
-
-
-        #f=file(fname,"w") ;
         for n in nodes :
             outfile.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(n.key,n.entrez,
              n.biogrid,n.systematic,n.official,n.synonyms,n.organism)) ;
 
         outfile.write("\n") ; # this blank line will signal the difference between nodes and interaction
 
-        interactors_outstring="" ;
+        interactors_outstring = "" ;
         for i in range(0,14) :
             interactors_outstring += "{}\t" ;
         interactors_outstring += "{}\n" ;
-
 
         #for i in list(self.the_data.values()) :
         for e in edges : 
@@ -1009,121 +964,73 @@ class dataSet(object):
                 else : 
                     pass ; 
 
-        #f.close() ;
 
-    def load_from(self,infobj) :
-        filelines=sum( 1 for line in infobj ) ;
-        #sys.stderr.write("DATASET:Opened a file of {} lines.\n".format(filelines));
-        infobj.seek(0) ; # return pointer to beginning of file
-        i=0 ;
-
-        s=infobj.readline() ;
-
-        # reading nodes
-        while s.strip()  :
-            node_data=s.strip().split('\t') ;
-            if node_data[0] in self.nodes : 
-                if self.debug : 
-                    sys.stderr.write('DEBUG> node'+node_data[0]+'_'+node_data[1]+' already exists in dataset.') ;
-                pass ; 
-            else : 
-                new_node=node(key=node_data[0],entrez=node_data[1],biogrid=node_data[2],systematic=node_data[3],official=node_data[4],synonyms=node_data[5],organism=node_data[6]) ;
-
-                if not self.n_filter or (self.n_filter and self.n_filter.test(new_node)) :
-                    self.nodes.update({ new_node.key : new_node }) ; 
-
-            s=infobj.readline() ;
-
-            i += 1 ; 
-
-            mu.waitbar(80 * i / filelines,80,showPct=True) ; 
-
-        # blank line, False for s.strip() triggers switchover to processing interactions 
-
-        s=infobj.readline() ;
-        i += 1 ; 
-
-        added_iKeys=set() ; 
-        while s.strip() :
-            i_data=s.strip().split('\t') ;
-
-            if not ( self.nodes.get(i_data[0]) and self.nodes.get(i_data[1]) ) : 
-                i += 1; 
-                s=infobj.readline() ;
-                mu.waitbar(80 * i / filelines,80,showPct=True) ; 
-                continue ; 
-
-            dir_state=True if i_data[14] == '>' else False ; 
-
-            new_inter=interaction(nodeA=self.nodes[i_data[0]],nodeB=\
-             self.nodes[i_data[1]],interID=i_data[2],system=i_data[3],\
-             systemType=i_data[4],Author=i_data[5],pmid=i_data[6],throughput=i_data[7],\
-             score=i_data[8],modification=i_data[9],phenotypes=i_data[10],\
-             qualifications=i_data[11],tags=i_data[12],srcDB=i_data[13],directed=dir_state) ;
+    def load_from( self, infobj ) :
+        """
+            reading in a network file saved using the above 'save' method
+            nodes and interactions are separated by an emtpy line
+        """
         
-            # add interaction to info for dataset
+        filelines   = sum( 1 for line in infobj ) ;
+        infobj.seek(0) ; # return pointer to beginning of file
 
-            if not self.i_filter or (self.i_filter and self.i_filter.test(new_inter)) : 
-                self.the_data.update({ new_inter.interID : new_inter}) ;
-
-                added_iKeys.add(i_data[2]) ;
-                #necessary because keys() returns a list, not a set
-            
-                # if the interaction belongs to a previously uncharacterized edge
-                if new_inter.edgekey() not in self.edges and\
-                    ei(new_inter.edgekey()) not in self.edges : 
-
-                    # create the edge
-                    newedge=bgedge(interaction=new_inter,\
-                             directed=new_inter.directed,\
-                             qual=new_inter.qualifications)
-
-                    # add it to the dataSet's dict of edges
-                    self.edges.update({ newedge.key : newedge }) ; 
-
-                    # connect partners of this edge(may be unecessary) ; 
-                    newedge.whence.partners.update({ newedge.to.key : newedge.to }) ; 
-                    newedge.to.partners.update({ newedge.whence.key : newedge.whence }) ; 
-
-                    if newedge.whence.key not in newedge.to.edges : 
-                        newedge.to.edges.update({ newedge.whence.key : { newedge } }) ; 
+        i           = 0
+        s           = infobj.readline()
+        nodes       = True
+        
+        while s:
+            if re.match( '^\s*$', s ):
+                nodes = False
+            else: 
+                # reading nodes
+                if nodes:
+                    node_data = s.strip().split('\t') ;
+                    if node_data[0] in self.nodes : 
+                        if self.debug : 
+                            sys.stderr.write('DEBUG> node'+node_data[0]+'_'+node_data[1]+' already exists in dataset.') ;
+                        pass ; 
                     else : 
-                        newedge.to.edges[newedge.whence.key].add(newedge) ; 
+                        new_node  = node( key        = node_data[0],
+                                          entrez     = node_data[1],
+                                          biogrid    = node_data[2],
+                                          systematic = node_data[3],
+                                          official   = node_data[4],
+                                          synonyms   = node_data[5],
+                                          organism   = node_data[6])
 
-                    if newedge.to.key not in newedge.whence.edges : 
-                        newedge.whence.edges.update({ newedge.to.key : { newedge } }) ; 
-                    else : 
-                        newedge.whence.edges[newedge.to.key].add(newedge) ; 
+                        self._add_node( new_node )
 
-                elif ei(new_inter.edgekey()) in self.edges : 
-                    self.edges[ei(new_inter.edgekey())].add_interaction(new_inter) ; 
-                else :
-                    self.edges[new_inter.edgekey()].add_interaction(new_inter) ; 
+                # reading interactions
+                else:
+                    i_data        = s.strip().split('\t')
 
-                new_inter.nodeA.interactions.update({ new_inter.interID : new_inter }) ; 
-                new_inter.nodeB.interactions.update({ new_inter.interID : new_inter }) ;
+                    if self.nodes.get(i_data[0]) and self.nodes.get(i_data[1]): 
 
-                #self.nodes[new_inter.nodeA.key].update_interaction(new_inter) ;
-               #if ( new_inter.nodeA.official != new_inter.nodeB.official ):
-               #    self.nodes[new_inter.nodeB.key].update_interaction(new_inter) ;
-            elif (self.debug):
-                debugout.write("DEBUG: Interaction {} excluded after filtering.\n".format(new_inter.interID)) ;
-            else:
-                i += 1; 
-                s=infobj.readline() ;
-                #mu.waitbar(80 * i / filelines,filelines,showPct=True) ; 
-                continue ; 
-
-            # add interaction to info for node A
-            # add interaction to info for node B
-            #if ( newInter.nodeA != newInter.nodeB )  :
-            #    self.nodes[iData[1]].update_interaction(newInter) ;
+                        dir_state = True if i_data[14] == '>' else False
+                        new_inter = interaction( nodeA          = self.nodes[i_data[0]],
+                                                 nodeB          = self.nodes[i_data[1]],
+                                                 interID        = i_data[2],
+                                                 system         = i_data[3],
+                                                 systemType     = i_data[4],
+                                                 Author         = i_data[5],
+                                                 pmid           = i_data[6],
+                                                 throughput     = i_data[7],
+                                                 score          = i_data[8],
+                                                 modification   = i_data[9],
+                                                 phenotypes     = i_data[10],
+                                                 qualifications = i_data[11],
+                                                 tags           = i_data[12],
+                                                 srcDB          = i_data[13],
+                                                 directed       = dir_state)
+        
+                        # add interaction to info for dataset
+                        self._add_interaction( new_inter )
             
-            i += 1; 
-            s=infobj.readline() ;
-            mu.waitbar(80 * i / filelines,80,showPct=True) ; 
+            i   += 1
+            s    = infobj.readline()
+            mu.waitbar( 80 * i / filelines, 80, showPct = True )
 
-        infobj.close() ;
+        infobj.close()
 
     def find_offs(self,official) : 
 
@@ -1160,6 +1067,7 @@ class dataSet(object):
             return False ; 
 
 
+        
 def fetch_nodes(queries,thebiogrid) :
 
     node_queries=set() ; 
@@ -1214,9 +1122,9 @@ def fetch_nodes_regex(queries,thebiogrid,field="official") :
 
     return node_queries ; 
             
-def print_edges( edges,print_headers=True,print_mean_scores=False,print_weights=False,print_total_scores=False,\
- sep='\t',fname="",print_organisms=False,print_source=False,inter_string='pp',transform_scores=None,\
- print_quals=True,print_pps=False):
+def print_edges( edges, print_headers = True, print_mean_scores = False, print_weights = False, print_total_scores = False,
+                 sep = '\t', fname = "", print_organisms = False, print_source = False, inter_string = 'pp', transform_scores = None,
+                 print_quals = True, print_pps = False ):
 
     from numpy import log10
 
@@ -1287,42 +1195,52 @@ def print_edges( edges,print_headers=True,print_mean_scores=False,print_weights=
     f.close()
 
 
+def humanize_node( n ):    
 
-def humanize_node(n) :
-
-    if n.organism != '10090' : 
-        return n ; 
-
-    from lib import rbase
-    rbase.load('m2h') ; 
-    rbase.load('hmg') ;
-
-    if rbase.m2h.get(n.entrez) is None :
-        h_entrez= n.entrez  ; 
-    else :
-        try : 
-            for e in rbase.m2h[n.entrez] :
-                if rbase.hmg['EID'][e]['Symbol'] == n.official.upper() : 
-                    h_entrez=e ; 
-                    break ; 
-            else : 
-                h_entrez=next(iter(rbase.m2h[n.entrez])) ; 
-
-            if len(rbase.m2h[n.entrez]) > 1  :
-                sys.stderr.write('\rWARNING: Interactors.humanize_node :'\
-                +' {}:{} is not the unique homolog of {}:{}.\n'\
-                .format(h_entrez,rbase.hmg['EID'][h_entrez]['Symbol'],\
-                n.entrez,n.official))
-        except KeyError : 
-            return n ; 
+    rbase.load( 'm2h' )
+    rbase.load( 'hsg' )
+    return convert_node( n, mouse_taxid, human_taxid, rbase.m2h, rbase.hsg )
 
 
-    try : 
-        n.official=rbase.hmg['EID'][h_entrez]['Symbol'] ; 
-        n.organism='9606' ;
-        n.entrez=h_entrez
-        n.key=n.official+'_'+n.entrez ; 
-    except(KeyError) : 
-        return n ; 
+def mouseify_node( n ):
+
+    rbase.load( 'h2m' )
+    rbase.load( 'mmg' )    
+    return convert_node( n, human_taxid, mouse_taxid, rbase.h2m, rbase.mmg )
+    
+
+def convert_node(n, from_taxid, to_taxid, conv, targ ) :
+
+    if n.organism == from_taxid : 
+
+        if conv.get(n.entrez) is None and n.entrez in targ['EID']:
+            target_entrez = n.entrez # the source entrezid is actually for the wrong org
+        elif conv.get(n.entrez) is None:
+            target_entrez = '' # source eid is not found
+        elif len(conv[n.entrez]) > 1 :        
+            for e in conv[n.entrez] :
+                # try finding target with the same name
+                if e in targ['EID']:
+                    if targ['EID'][e]['Symbol'] == n.official.upper() : 
+                        target_entrez = e
+                        break ; 
+            else :
+                # pick target - the smallest entrezid                
+                target_entrez = str(sorted(map(int, conv.get(n.entrez)))[0])
+
+            sys.stderr.write('\rWARNING: Interactors.convert_node :'
+                             +' {}:{} is not the unique homolog of {}:{}.\n'
+                             .format( target_entrez, targ['EID'][target_entrez]['Symbol'],
+                                      n.entrez, n.official ))
+
+        else:
+            # one to one mapping
+            target_entrez = next(iter(conv[n.entrez])) ;
+
+        if target_entrez :
+            n.official = targ['EID'][target_entrez]['Symbol']
+            n.organism = to_taxid
+            n.entrez   = target_entrez
+            n.key      = n.official+'_'+n.entrez
 
     return n ; 

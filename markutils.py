@@ -66,7 +66,6 @@ def waitbar(pos,end,showPct=False,fill='#') :
     if ( showPct ) :
         sys.stdout.write(" ({:0>3}%)".format(100*pos//end)) ; 
 
-
     sys.stdout.flush() ;
 
 

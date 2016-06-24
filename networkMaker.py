@@ -34,20 +34,15 @@ def tokey(c, s) :
     elif c['organism'] == 'mouse':
         return s+'_'+rbase.mmg['Symbol'][s]['EID']
 
+    
 def loadObjects( c ):
 
     if c['organism'] == 'human' :
         rbase.load('hmg')
     elif c['organism'] == 'mouse' :
         rbase.load('mmg')
-    
-    if 'm2h' in [ d.get('convert') for d in c['ds_dicts'] ] : 
-        rbase.load('m2h')
 
-    if 'h2m' in [ d.get('convert') for d in c['ds_dicts'] ] : 
-        rbase.load('h2m')
-    
-
+        
 def readYAMLfile( yamlfile, c ) :
 
     with open( yamlfile ) as infile :
@@ -184,14 +179,16 @@ def readPublicDatasets( nwdata, c ):
         elif pd.get('convert') == 'h2m' : 
             temporaryds.parse( pdsf, fd = I.fd_biogrid, h2m = True, qualify = pd.get('qualify',''),
                                directed = False, force_qualify = True )
-        else : 
+        else :
             temporaryds.parse( pdsf, fd = I.fd_biogrid, qualify = pd.get('qualify',''),
                                directed = False, force_qualify = True )
 
+        print( 'saving public dataset' + pd['infilename'])
         sio = StringIO()
         temporaryds.save( sio, edges = { e for e in temporaryds.edges.values() 
                                          if e.weight >= pd.get('minweight',0) and e.totalscore >= pd.get('minscore',0) });
-        sio.seek(0) 
+        sio.seek(0)
+        print( 'reloading public dataset' + pd['infilename'])
         nwdata.load_from( sio )
         sio.close()
         pdsf.close()
@@ -341,10 +338,10 @@ def createNetwork( yamlfile ) :
     readYAMLfile( yamlfile, config )
     loadObjects( config )
     
-    #theds = I.dataSet(n_filter = ie.bg_regex_assembler()[1])
     theds = I.dataSet(n_filter = ie.exogenous_regex_assembler())
 
     readInDatasets( theds, config )
+
     # filter experimental data by background dists 
     filterNodesByBackground( theds, config )
 
