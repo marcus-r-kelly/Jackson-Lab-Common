@@ -9,8 +9,10 @@ from os.path import isfile
 from warnings import warn
 import pickle
 import os
-from scipy.stats.distributions import norm
+from scipy.stats.distributions import norm, truncnorm
 from statsmodels.sandbox.stats.multicomp import multipletests
+from mpmath import mp as mpmns
+
 
 sow=sys.stdout.write
 sew=sys.stderr.write
@@ -967,19 +969,25 @@ def zfilter(query_ds,bg_dses,query_bait,bg_bait,logp = -3,as_dict=False,percenti
     else : 
         return out
 
-def print_springs( edges,print_headers=True,print_weights=False,print_total_scores=False,\
- print_mean_scores=False,sep='\t',fname="",print_organisms=False,print_source=False,inter_string='pp',\
- transform_scores=None, print_quals=True,print_pps=False):
+def print_springs( edges, fname = "", print_headers = True, sep = '\t', print_weights = False,
+                   print_total_scores = False, print_mean_scores = False, print_organisms = False,
+                   print_source = False, inter_string = 'pp', transform_scores = None,
+                   print_quals = True, print_pps = False ):
 
-    from numpy import log10
+    def spring_transform(edge) : 
+
+        if edge.qual == 'em' : 
+            return 10  ; 
+        elif edge.qual not in {'bg','bp'} : 
+            #return 8.5 - np.log10(e.meanscore) ; 
+            return 1 ; 
+        else : 
+            return 5
 
     if ( not fname ) :
-        f=sys.stdout  ;
-    #elif isfile(fname): 
-        #sys.stdout.write('Appending to existing file {}\n'.format(fname)) ; 
-        #f=open(fname,"a") ; 
+        f = sys.stdout
     else : 
-        f=open(fname,"w") ; 
+        f = open(fname,"w") ; 
 
     if ( print_headers) :
         f.write("Left{}Inter{}Right".format(sep,sep)) ;
@@ -1005,24 +1013,10 @@ def print_springs( edges,print_headers=True,print_weights=False,print_total_scor
 
         f.write("\n") ;
 
-    def spring_transform(edge) : 
-
-        if edge.qual == 'em' : 
-            return 10  ; 
-        elif edge.qual not in {'bg','bp'} : 
-            #return 8.5 - np.log10(e.meanscore) ; 
-            return 1 ; 
-        else : 
-            return 5 ; 
-
-
     for edge in edges : 
 
         #edget=tuple(edge.nodes) ;
-        if edge.directed : 
-            thedir = '>' ; 
-        else : 
-            thedir = '^' ; 
+        thedir = '>' if edge.directed else '^'
 
         f.write("{}{}{}{}{}{}".format(edge.whence.official,sep,thedir,inter_string,sep,edge.to.official)) ;
 
@@ -1051,7 +1045,7 @@ def print_springs( edges,print_headers=True,print_weights=False,print_total_scor
         if ( print_source):
             f.write("{}{}".format(sep,edge.source)) ;
         if print_pps : 
-            f.write("{}{}".format(sep,-1*log10(edge.p)))
+            f.write("{}{}".format(sep,-1*np.log10(edge.p)))
 
         # guaranteed springiness printing
 
@@ -1204,9 +1198,6 @@ def zfilter_mp(query_ds,bg_dses,query_bait,bg_bait,logp = -3,as_dict=False,perce
             key : z
     """
     warn(DeprecationWarning('I (Mark) can\'t vouch for zfilter_mp right now 3/1/2016') )
-
-    from scipy.stats.distributions import truncnorm
-    from mpmath import mp as mpmns
 
     #mplog10 =  lambda x : mpmns.log(x)/mpmns.log(10)
     #mptndpf  = lambda z : mpmns.npdf(x) * ( 1 + 1/mpmns.ncdf(
@@ -1385,9 +1376,9 @@ def madfilter(dataset,ctrl_fname,baitkey,qual=None,directed=False,as_dict=False,
     else :
         return { eks[x] for x in range(len(eks)) if rejects[x] } ; 
 
-def mad(series) : 
-    return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
-
+    def mad(series) : 
+        return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
+    
 def madfilter_corr( dataset,                # network dataset to process, interactors.dataSet instance
                     ctrl_fname,             # control file name to use, pickled syms,medians mads 
                     baitkey,                # key for the bait in dataset
@@ -1410,7 +1401,6 @@ def madfilter_corr( dataset,                # network dataset to process, intera
         baitkey : key of bait
     """
 
-    
     # read in control file
     if not os.path.isfile(ctrl_fname) and not os.path.isfile(CONTROL_FILES + ctrl_fname) :
         raise FileNotFoundError('Could not find '+ctrl_fname) ;

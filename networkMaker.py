@@ -12,21 +12,13 @@ from lib import interactors_extras as ie
 from lib import rbase
 from lib.markutils import b4us,afterus
 
-#import rbase
-#import interactors as I
-#import interactors_extras as ie
-
+DB           = False
 deprecation  = colorama.Fore.RED+" DEPRECATED 21 APRIL 2016 "+colorama.Fore.RESET
 config       = { 'ifiles' : '/mnt/msrepo/ifiles/',
                  'publicDatadir' : '/mnt/reference/',
                  'youtfilename' : '',
                  'outfilename'  : '',
                  'rescue_f'     : None }
-
-DB  = False
-org = ''
-m2h = ''
-h2m = ''
 
 def tokey(c, s) :
     if c['organism'] == 'human':
@@ -52,12 +44,12 @@ def loadObjects( c ):
 def readYAMLfile( yamlfile, c ) :
 
     with open( yamlfile ) as infile :
-        yout = yaml.load(infile.read())
+        yout          = yaml.load(infile.read())
 
     c['ds_dicts']     = yout['datasets']
 
     for dsd in c['ds_dicts'] : 
-        lost_files = 0
+        lost_files    = 0
         if not os.path.isfile('./'+dsd['infilename']) and \
            not os.path.isfile(c['ifiles']+dsd['infilename']) : 
             print('File '+dsd['infilename']+' not found.')
@@ -76,11 +68,14 @@ def readYAMLfile( yamlfile, c ) :
     c['rescue_deg']   = yout['options'].get('degree_to_rescue',1)
     c['valid_quals']  = yout['options'].get('valid_degree_quals',{'wt',})
     c['mt_method']    = yout['options'].get('mt_method','fdr_bh')
+    c['nwd']          = yout['options'].get('network-wide_degree',False)
+    c['public_dicts'] = yout['public']
+    # this should be a list of dicts
+    # each dict (1/public file) should have the fields : infilename qualify convert misncore minweight
+    # public datasets have NO baits, are NOT DIRECTED, and are NEVER compared to negative controls
 
     if type(c['valid_quals']) is list : 
-        c['valid_quals'] = set(c['valid_quals'])
-
-    c['nwd']          = yout['options'].get('network-wide_degree',False)
+        c['valid_quals']  = set(c['valid_quals'])
 
     if yout.get('files') : 
         c['rescue_f']     = yout['files'].get('rescue',None)
@@ -95,22 +90,16 @@ def readYAMLfile( yamlfile, c ) :
         sys.stderr.write('No valid output file name provided!\n')
         os._exit(1)
     else:
-        c['outfilename'] = c['youtfilename']
+        c['outfilename']  = c['youtfilename']
 
     if 'yidbfilename' in c :
-        c['idbfilename'] = c['yidbfilename']
+        c['idbfilename']  = c['yidbfilename']
         
-    c['public_dicts'] = yout['public']
-    # this should be a list of dicts
-    # each dict (1/public file) should have the fields : infilename qualify convert misncore minweight
-    # public datasets have NO baits, are NOT DIRECTED, and are NEVER compared to negative controls
 
 def readInDatasets( nwdata, c ):
 
     # parse datasets
     baitkeys      = list()
-    zfhits_strong = set()
-    zfhits_weak   = set()
 
     # iterating through the dataset items
     for dsd in c['ds_dicts'] : 
@@ -139,26 +128,26 @@ def readInDatasets( nwdata, c ):
 
 def filterNodesByBackground( nwdata, c ):
 
-    zfhits_strong = set( )
-    zfhits_weak   = set( )
+    zfhits_strong          = set( )
+    zfhits_weak            = set( )
     
     for dsd in c['ds_dicts'] : 
         zfhits_strong     |= ie.madfilter_corr( nwdata, dsd['control'], tokey(c, dsd['bait']),
-                                            qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_HI'],
+                                                qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_HI'],
                                                 floor = c['FLOOR_HI'], maxcorr = c['CORRL_HI'], debug = DB , 
-                                            method = c['mt_method'] )
+                                                method = c['mt_method'] )
         zfhits_weak       |= ie.madfilter_corr( nwdata, dsd['control'], tokey(c, dsd['bait']),
-                                            qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_LO'],
+                                                qual = dsd.get('qualify'), directed = True, alpha = c['ALPHA_LO'],
                                                 floor = c['FLOOR_LO'], maxcorr = c['CORRL_LO'], debug = DB ,
-                                            method = c['mt_method'] )
-
+                                                method = c['mt_method'] )
+        
     # expt bait to node edges, that are deemed significant
-    zfhits_joint       = zfhits_strong | zfhits_weak
+    zfhits_joint           = zfhits_strong | zfhits_weak
 
     # pass 1 nodes : every node at the end of one of the validated edges
     # remove nodes that don't have experimental edges pointing to them
-    node_pass1_all    = { nk for ek in zfhits_joint  for nk in { nwdata.edges[ek].to.key, nwdata.edges[ek].whence.key}}
-    node_pass1_strong = { nk for ek in zfhits_strong for nk in { nwdata.edges[ek].to.key, nwdata.edges[ek].whence.key}}
+    node_pass1_all         = { nk for ek in zfhits_joint  for nk in { nwdata.edges[ek].to.key, nwdata.edges[ek].whence.key}}
+    node_pass1_strong      = { nk for ek in zfhits_strong for nk in { nwdata.edges[ek].to.key, nwdata.edges[ek].whence.key}}
 
     c['zfhits_joint']      = zfhits_joint
     c['node_pass1_all']    = node_pass1_all
