@@ -1385,6 +1385,9 @@ def madfilter(dataset,ctrl_fname,baitkey,qual=None,directed=False,as_dict=False,
     else :
         return { eks[x] for x in range(len(eks)) if rejects[x] } ; 
 
+def mad(series) : 
+    return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
+
 def madfilter_corr( dataset,                # network dataset to process, interactors.dataSet instance
                     ctrl_fname,             # control file name to use, pickled syms,medians mads 
                     baitkey,                # key for the bait in dataset
@@ -1407,8 +1410,6 @@ def madfilter_corr( dataset,                # network dataset to process, intera
         baitkey : key of bait
     """
 
-    def mad(series) : 
-        return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
     
     # read in control file
     if not os.path.isfile(ctrl_fname) and not os.path.isfile(CONTROL_FILES + ctrl_fname) :
