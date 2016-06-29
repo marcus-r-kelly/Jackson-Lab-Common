@@ -30,9 +30,15 @@ h2m = ''
 
 def tokey(c, s) :
     if c['organism'] == 'human':
-        return s+'_'+rbase.hmg['Symbol'][s]['EID']
+        if s in rbase.hmg['Symbol'] : 
+            return s+'_'+rbase.hmg['Symbol'][s]['EID']
+        else : 
+            return s+'_00' ;
     elif c['organism'] == 'mouse':
-        return s+'_'+rbase.mmg['Symbol'][s]['EID']
+        if s in rbase.hmg['Symbol'] : 
+            return s+'_'+rbase.mmg['Symbol'][s]['EID']
+        else : 
+            return s+'_00' ;
 
     
 def loadObjects( c ):
