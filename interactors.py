@@ -568,10 +568,10 @@ class dataSet(object):
         self.superdebug         = superdebug ;
         self.debug              = True if self.superdebug else debug 
 
-        if self.n_filter is not None:
+        if self.n_filter is not None and self.n_filter in FILTER:
             self.n_filter = FILTER[ self.n_filter ]()
 
-        if self.i_filter is not None:
+        if self.i_filter is not None and self.i_filter in FILTER:
             self.i_filter = FILTER[ self.i_filter ]()
             
         # this will again be a set of interactions, but not necessarily with complete data
