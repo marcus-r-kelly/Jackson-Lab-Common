@@ -41,7 +41,7 @@ DEFAULT_FIELD_DICTIONARY =  fdms
 mouse_taxid = '10090'
 human_taxid = '9606'
 
-FILTERING   = { 'biogrid': 'ie.bg_regex_assembler',
+FILTER      = { 'biogrid': 'ie.bg_regex_assembler',
                 'bg_excl' : 'ie.bg_regex_assembler_excl',
                 'bg_incl' : 'ie.bg_regex_assembler_incl',
                 'exogeneous': 'ie.exogenous_regex_assembler',
