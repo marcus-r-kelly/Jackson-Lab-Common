@@ -163,7 +163,7 @@ def readPublicDatasets( nwdata, c ):
         # (done) make emili follow biogrid field conventions
         # TODO ditto bioplex
         if pd['infilename'] in os.listdir('.') : 
-            pdsf = open(dsd['infilename'])
+            pdsf = open(pd['infilename'])
         elif os.path.isfile(pd['infilename']) :
             pdsf = open(pd['infilename'])
         else : 

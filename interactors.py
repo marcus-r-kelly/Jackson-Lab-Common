@@ -6,14 +6,9 @@ from os.path import isfile
 from os import remove
 import importlib
 from django.forms import model_to_dict
-from lib import rbase        
+from lib import rbase
+from lib import filters
 
-REGEX_COMPILED_TYPE=type(re.compile("foo")) ;
-# for type comparisons later on
-
-VALID_FIELDS_INTERACTIONS=["interID", "system", "systemType", "Author", "pmid", "throughput", "score", "modification", "phenotypes", "qualifications", "tags", "srcDB"] 
-VALID_FIELDS_INPUTS=["interID", "entrezA", "entrezB", "biogridA", "biogridB", "systematicA", "systematicB", "officialA", "officialB", "synonymsA", "synonymsB", "system", "systemType", "Author", "pmid", "organismA", "organismB", "throughput", "score", "modification", "phenotypes", "qualifications", "tags", "srcDB"] 
-VALID_FIELDS_NODES=["entrez","biogrid","systematic","official","synonyms","organism"]
 
 # note that field dictionaries still need to include things like entrezA. HOWEVER, some field information is exclusive to interactions and others are exclusive to nodes
 
@@ -41,11 +36,11 @@ DEFAULT_FIELD_DICTIONARY =  fdms
 mouse_taxid = '10090'
 human_taxid = '9606'
 
-FILTER      = { 'biogrid': 'ie.bg_regex_assembler',
-                'bg_excl' : 'ie.bg_regex_assembler_excl',
-                'bg_incl' : 'ie.bg_regex_assembler_incl',
-                'exogeneous': 'ie.exogenous_regex_assembler',
-                'isoform': 'ie.exogenous_and_isoformtastic' }
+FILTER      = { 'biogrid': filters.bg_regex_assembler,
+                'bg_excl' : filters.bg_regex_assembler_excl,
+                'bg_incl' : filters.bg_regex_assembler_incl,
+                'exogeneous': filters.exogenous_regex_assembler,
+                'isoform': filters.exogenous_and_isoformtastic }
 
 keyer=lambda x : x.offical + '_' + x.entrez ;
 # function to generate node 'key'
@@ -568,11 +563,17 @@ class dataSet(object):
         self.superdebug         = superdebug ;
         self.debug              = True if self.superdebug else debug 
 
+        print( 'n_filter=' + str(self.n_filter ))
+        print( 'i_filter=' + str(self.i_filter ))        
         if self.n_filter is not None and self.n_filter in FILTER:
+            print( 'ever here - n?')
             self.n_filter = FILTER[ self.n_filter ]()
+            print( type( self.n_filter ))
 
         if self.i_filter is not None and self.i_filter in FILTER:
+            print( 'ever here - i?')
             self.i_filter = FILTER[ self.i_filter ]()
+            print( type( self.i_filter ))
             
         # this will again be a set of interactions, but not necessarily with complete data
         if interactions is None :
