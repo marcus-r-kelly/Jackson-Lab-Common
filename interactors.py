@@ -41,6 +41,12 @@ DEFAULT_FIELD_DICTIONARY =  fdms
 mouse_taxid = '10090'
 human_taxid = '9606'
 
+FILTERING   = { 'biogrid': 'ie.bg_regex_assembler',
+                'bg_excl' : 'ie.bg_regex_assembler_excl',
+                'bg_incl' : 'ie.bg_regex_assembler_incl',
+                'exogeneous': 'ie.exogenous_regex_assembler',
+                'isoform': 'ie.exogenous_and_isoformtastic' }
+
 keyer=lambda x : x.offical + '_' + x.entrez ;
 # function to generate node 'key'
 # almost always <symbol>_<entrez id>
@@ -562,6 +568,12 @@ class dataSet(object):
         self.superdebug         = superdebug ;
         self.debug              = True if self.superdebug else debug 
 
+        if self.n_filter is not None:
+            self.n_filter = FILTER[ self.n_filter ]()
+
+        if self.i_filter is not None:
+            self.i_filter = FILTER[ self.i_filter ]()
+            
         # this will again be a set of interactions, but not necessarily with complete data
         if interactions is None :
             self.the_data = dict() ;

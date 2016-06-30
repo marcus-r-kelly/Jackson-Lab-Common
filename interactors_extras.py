@@ -102,6 +102,11 @@ especially_rigorous_experiments = { "Biochemical Activity",\
                                     "Co-purification",\
                                     "Reconstituted Complex"}
 
+def bg_regex_assembler_excl(iorg="") :
+    return bg_regex_assembler(iorg)[0]
+
+def bg_regex_assembler_incl(iorg="") :
+    return bg_regex_assembler(iorg)[1]
 
 def bg_regex_assembler(iorg="") :
 
@@ -1376,8 +1381,8 @@ def madfilter(dataset,ctrl_fname,baitkey,qual=None,directed=False,as_dict=False,
     else :
         return { eks[x] for x in range(len(eks)) if rejects[x] } ; 
 
-    def mad(series) : 
-        return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
+def mad(series) : 
+    return np.percentile(np.abs(series-np.percentile(series,50)),50) ; 
     
 def madfilter_corr( dataset,                # network dataset to process, interactors.dataSet instance
                     ctrl_fname,             # control file name to use, pickled syms,medians mads 

@@ -68,6 +68,8 @@ def readYAMLfile( yamlfile, c ) :
     c['rescue_deg']   = yout['options'].get('degree_to_rescue',1)
     c['valid_quals']  = yout['options'].get('valid_degree_quals',{'wt',})
     c['mt_method']    = yout['options'].get('mt_method','fdr_bh')
+    c['node_filter']  = yout['options'].get('node_filter', None)
+    c['iact_filter']  = yout['options'].get('iact_filter', None) 
     c['nwd']          = yout['options'].get('network-wide_degree',False)
     c['public_dicts'] = yout['public']
     # this should be a list of dicts
@@ -167,7 +169,7 @@ def readPublicDatasets( nwdata, c ):
         else : 
             pdsf = open(c['publicDatadir'] + pd['infilename'])
 
-        temporaryds = I.dataSet( i_filter = ie.bg_regex_assembler()[0] )
+        temporaryds = I.dataSet( i_filter = c['iact_filter'] )
         if pd.get('convert') == 'm2h' : 
             temporaryds.parse( pdsf, fd = I.fd_biogrid, m2h = True, qualify = pd.get('qualify',''),
                                directed = False, force_qualify = True )
@@ -327,13 +329,12 @@ def makeOutput( nwdata, c ):
         nwdata.save( c['idbfilename'], nodes = c['nodes_pass2'], edges = c['edges_pass2'] )
 
 
-
 def createNetwork( yamlfile ) :
 
     readYAMLfile( yamlfile, config )
     loadObjects( config )
     
-    theds = I.dataSet(n_filter = ie.exogenous_regex_assembler())
+    theds = I.dataSet(n_filter = config['node_filter'])
 
     readInDatasets( theds, config )
 
